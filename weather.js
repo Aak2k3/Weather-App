@@ -1,5 +1,4 @@
 'use strict'
-const API_KEY = 'YOUR_API_KEY_HERE'; // Replace with your actual API key
 
 // Elements
 const searchBtn = document.getElementById('search-btn');
@@ -12,11 +11,19 @@ const windSpeed = document.getElementById('wind-speed');
 const weatherIcon = document.getElementById('weather-icon');
 const errorMessage = document.getElementById('error-message');
 const currentLocation = document.getElementById('currentBtn');
+const dropdownMenu = document.getElementById('dropdown');
+const dropdownBtn = document.getElementById('dropdown-btn')
+
+// bringing data from local storage
+let recentSearches = JSON.parse(localStorage.getItem('recentSearches')) || [];
+let API_KEY = `9be20a0a88ddfe5a3ee4d50399f89adf`;
+
+updateDropdown();
 
 
 // Fetch Weather Data
 async function fetchWeather(city) {
-  let API_KEY = `9be20a0a88ddfe5a3ee4d50399f89adf`;
+  
   try {
     const response = await fetch(
       `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${API_KEY}&units=metric`
@@ -50,6 +57,7 @@ currentLocation.addEventListener('click', function(){
       const data = await response.json();
 
       updateWeatherUI(data);
+      addCityToRecent(city);
 
     } catch (error) {
       errorMessage.textContent = error.message;
@@ -79,4 +87,43 @@ function updateWeatherUI(data) {
 searchBtn.addEventListener('click', () => {
   const city = cityInput.value.trim();
   if (city) fetchWeather(city);
+});
+
+dropdownBtn.addEventListener('click', () => {
+  if (dropdownMenu.classList.contains('hidden')) {
+    updateDropdown();
+    dropdownMenu.classList.remove('hidden');
+  } else {
+    dropdownMenu.classList.add('hidden');
+  }
+});
+
+
+
+//updating the drop down with recent searches.
+function updateDropdown() {
+  dropdownMenu.innerHTML = '';
+  recentSearches.forEach((city) => {
+    const li = document.createElement('li');
+    li.textContent = city;
+    li.classList.add('cursor-pointer', 'hover:bg-gray-200', 'p-2', 'rounded-lg');
+    li.addEventListener('click', () => fetchWeather(city));
+    dropdownMenu.appendChild(li);
+  });
+}
+
+// Add City to Recent Searches
+function addCityToRecent(city) {
+  if (!recentSearches.includes(city)) {
+    recentSearches.push(city);
+    localStorage.setItem('recentSearches', JSON.stringify(recentSearches));
+    updateDropdown();
+  }
+}
+
+
+// Call this function after fetching weather
+searchBtn.addEventListener('click', () => {
+  const city = cityInput.value.trim();
+  if (city) addCityToRecent(city);
 });
