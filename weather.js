@@ -5,6 +5,7 @@ const searchBtn = document.getElementById('search-btn');
 const cityInput = document.getElementById('city-input');
 const weatherDisplay = document.getElementById('weather-display');
 const cityName = document.getElementById('city-name');
+const WeatherInfo = document.getElementById('weather');
 const temperature = document.getElementById('temperature');
 const humidity = document.getElementById('humidity');
 const windSpeed = document.getElementById('wind-speed');
@@ -47,6 +48,7 @@ currentLocation.addEventListener('click', function(){
   if(navigator.geolocation){
   navigator.geolocation.getCurrentPosition(async (position)=>{
     const { latitude, longitude } = position.coords;
+    
 
     try {                    //callback Async/await
       const response = await fetch(
@@ -57,7 +59,9 @@ currentLocation.addEventListener('click', function(){
       const data = await response.json();
 
       updateWeatherUI(data);
-      addCityToRecent(city);
+      
+      addCityToRecent(data.name);
+      fetchForecast(data.name);
 
     } catch (error) {
       errorMessage.textContent = error.message;
@@ -73,10 +77,59 @@ currentLocation.addEventListener('click', function(){
   
   });
 
+// Fetching 5-day forecast
+async function fetchForecast(city) {
+  try {
+    const response = await fetch(
+      `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${API_KEY}&units=metric`
+    );
+    if (!response.ok) throw new Error(`Error fetching forecast`);
+    const data = await response.json();
+    console.log(data)
+    displayForecast(data); 
+  } catch (error) {
+    console.error(error.message);
+    document.getElementById('error-message').textContent = error.message;
+    document.getElementById('error-message').classList.remove('hidden');
+  }
+}
+
+// Displaying the forecast
+function displayForecast(data) {
+  const forecastContainer = document.getElementById('forecast-container');
+  forecastContainer.innerHTML = ''; 
+
+  
+  const dailyForecasts = data.list.filter(item => item.dt_txt.includes('12:00:00'));
+
+  dailyForecasts.forEach(day => {
+    const date = new Date(day.dt_txt).toLocaleDateString('en-US', { weekday: 'long' });
+    const temp = Math.round(day.main.temp);
+    const humidity = day.main.humidity;
+    const wind = day.wind.speed;
+    const icon = `https://openweathermap.org/img/wn/${day.weather[0].icon}.png`;
+
+    // Creating html for the forecast
+    const forecastHTML = `
+      <div class="p-4 bg-blue-200 rounded-lg shadow-md flex flex-col items-center">
+        <p class="font-semibold">${date}</p>
+        <img src="${icon}" alt="${day.weather[0].description}" class="w-12 h-12">
+        <p class="text-lg font-bold">${temp}°C</p>
+        <p class="text-sm">Humidity: ${humidity}%</p>
+        <p class="text-sm">Wind: ${wind} m/s</p>
+      </div>
+    `;
+
+    forecastContainer.innerHTML += forecastHTML;
+  });
+}
+
+
 // Update Weather UI
 function updateWeatherUI(data) {
   weatherDisplay.classList.remove('hidden');
   cityName.textContent = data.name;
+  WeatherInfo.textContent = `${data.weather[0].main}`
   temperature.textContent = `Temperature: ${data.main.temp}°C`;
   humidity.textContent = `Humidity: ${data.main.humidity}%`;
   windSpeed.textContent = `Wind Speed: ${data.wind.speed} m/s`;
@@ -86,7 +139,9 @@ function updateWeatherUI(data) {
 // Event Listener
 searchBtn.addEventListener('click', () => {
   const city = cityInput.value.trim();
-  if (city) fetchWeather(city);
+  if (city) {fetchWeather(city);
+    fetchForecast(city);
+  }
 });
 
 dropdownBtn.addEventListener('click', () => {
@@ -107,7 +162,10 @@ function updateDropdown() {
     const li = document.createElement('li');
     li.textContent = city;
     li.classList.add('cursor-pointer', 'hover:bg-gray-200', 'p-2', 'rounded-lg');
-    li.addEventListener('click', () => fetchWeather(city));
+    li.addEventListener('click', function(){
+      fetchWeather(city);
+      fetchForecast(city);
+    });
     dropdownMenu.appendChild(li);
   });
 }
